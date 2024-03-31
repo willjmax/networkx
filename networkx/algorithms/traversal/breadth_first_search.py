@@ -601,7 +601,7 @@ def descendants_at_distance(G, source, distance):
     return set()
 
 
-def lexicographic_bfs(G, minus=False, initial_order=None):
+def lexicographic_bfs(G, minus=False, initial_order=None, reverse=False):
     """Returns a lexicographic breadth-first ordering.
 
     Parameters
@@ -641,19 +641,28 @@ def lexicographic_bfs(G, minus=False, initial_order=None):
         d1 = "next"
         d2 = "prev"
 
-    # initialize ordered set
     vertices = set(G.nodes)
-    head = {"next": None, "prev": None, "vertex": initial_order[0]}
-    tail = head
-    lookup = {initial_order[0]: head}
-    vertices.remove(initial_order[0])
+    n = len(G.nodes)
+    lookup = {}
 
-    for v in initial_order[1:]:
-        new_vertex = {"next": None, "prev": tail, "vertex": v}
-        tail["next"] = new_vertex
-        tail = new_vertex
-        lookup[v] = new_vertex
-        vertices.remove(v)
+    # initialize ordered set
+    if initial_order:
+        head = {"next": None, "prev": None, "vertex": initial_order[0]}
+        tail = head
+        lookup[initial_order[0]] = head
+        vertices.remove(initial_order[0])
+
+        for v in initial_order[1:]:
+            new_vertex = {"next": None, "prev": tail, "vertex": v}
+            tail["next"] = new_vertex
+            tail = new_vertex
+            lookup[v] = new_vertex
+            vertices.remove(v)
+    else:
+        v = vertices.pop()
+        head = {"next": None, "prev": None, "vertex": v}
+        tail = head
+        lookup[v] = head
 
     # handle unordered vertices
     for v in vertices:
@@ -692,7 +701,11 @@ def lexicographic_bfs(G, minus=False, initial_order=None):
 
             first_set = first_set["next"]
 
-        order[v] = i
+        if reverse:
+            order[v] = n - i + 1
+        else:
+            order[v] = i
+
         get_set[v] = None
         neighbor = neighborhoods[v]["head"]
 
@@ -761,8 +774,6 @@ def lexicographic_bfs(G, minus=False, initial_order=None):
 
             neighbor = neighbor["next"]
         i = i + 1
-
-        debug(first_set)
 
     return order
 
