@@ -9,6 +9,7 @@ import sys
 
 import networkx as nx
 from networkx.algorithms.components import connected_components
+from networkx.algorithms.traversal import lexicographic_bfs
 from networkx.utils import arbitrary_element, not_implemented_for
 
 __all__ = [
@@ -18,6 +19,8 @@ __all__ = [
     "chordal_graph_treewidth",
     "NetworkXTreewidthBoundExceeded",
     "complete_to_chordal_graph",
+    "perfect_elim_order",
+    "is_perfect_elim_order"
 ]
 
 
@@ -440,3 +443,109 @@ def complete_to_chordal_graph(G):
             weight[node] += 1
     H.add_edges_from(chords)
     return H, alpha
+
+
+def perfect_elim_order(G):
+    """Returns a perfect elimination order of a chordal graph
+
+    Parameters
+    ----------
+    G : NetworkX graph
+        Undirected graph
+
+    Returns
+    -------
+    peo : Dictionary
+          A perfect elimination order of G in the form {vertex : position}
+
+    Raises
+    ------
+    NetworkXError
+          Raises if G is not chordal
+    """
+    if not is_chordal(G):
+        raise nx.NetworkXError("Input graph is not chordal.")
+
+    lex_order = list(lexicographic_bfs(G))
+    n = len(lex_order)
+    peo = {v: n-k for k, v in enumerate(lex_order) }
+
+    return peo
+
+def is_perfect_elim_order(G, order):
+    """Tests whether or not order is a perfect elimination order of G
+
+    Parameters
+    ----------
+    G : NetworkX graph
+        Undirected graph
+    order : Dictionary
+            An ordering on the vertices of G
+
+    Returns
+    -------
+    bool
+        True if order is a perfect elimination order of G,
+        False otherwise
+
+    Notes
+    -----
+    This implementation is based off the one given in
+    https://en.wikipedia.org/wiki/Lexicographic_breadth-first_search
+
+    Examples
+    --------
+    >>> import networkx as nx
+    >>> e = [
+    ...     (1, 2),
+    ...     (1, 3),
+    ...     (2, 3),
+    ...     (2, 4),
+    ...     (3, 4),
+    ...     (3, 5),
+    ...     (3, 6),
+    ...     (4, 5),
+    ...     (4, 6),
+    ...     (5, 6)
+    ... ]
+    >>> G = nx.Graph(e)
+    >>> order = {1: 4, 2: 2, 3: 1, 4: 3, 5: 5, 6: 6}
+    >>> nx.is_perfect_elim_order(G, order)
+    False
+    """
+    n = len(G.nodes)
+
+    def rev_order(k):
+        return n - order[k] + 1
+
+    inv_order = {v: k for k, v in order.items()}
+
+    for i in range(1, n + 1):
+        v = inv_order[n - i + 1]
+        w = None
+        k = 0
+        neighbors_v = set()
+        edges = G.edges(v)
+        for edge in edges:
+            u = edge[1]
+            if rev_order(u) < rev_order(v):
+                neighbors_v.add(u)
+                if rev_order(u) > k:
+                    w = u
+                    k = rev_order(u)
+
+        if w is None:
+            continue
+
+        neighbors_w = set()
+        edges = G.edges(w)
+        for edge in edges:
+            u = edge[1]
+            if rev_order(u) < rev_order(w):
+                neighbors_w.add(u)
+
+        neighbors_v.remove(w)
+        if not neighbors_v.issubset(neighbors_w):
+            return False
+
+    return True
